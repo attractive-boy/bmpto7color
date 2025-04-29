@@ -91,31 +91,23 @@ async function convertImageToHexArray(imagePath) {
             }
         }
 
-        // 创建新图片用于预览
-        const previewImage = new Jimp(EPD_WIDTH, EPD_HEIGHT);
-        
-        // 将七色数据转换为预览图片
-        hexArray.forEach((color, index) => {
-            const x = index % EPD_WIDTH;
-            const y = Math.floor(index / EPD_WIDTH);
-            let rgb;
-            
-            switch(color) {
-                case EPD_7IN3F_BLACK: rgb = [0, 0, 0]; break;
-                case EPD_7IN3F_WHITE: rgb = [255, 255, 255]; break;
-                case EPD_7IN3F_GREEN: rgb = [0, 255, 0]; break;
-                case EPD_7IN3F_BLUE: rgb = [0, 0, 255]; break;
-                case EPD_7IN3F_RED: rgb = [255, 0, 0]; break;
-                case EPD_7IN3F_YELLOW: rgb = [255, 255, 0]; break;
-                case EPD_7IN3F_ORANGE: rgb = [255, 165, 0]; break;
-            }
-            
-            previewImage.setPixelColor(Jimp.rgbaToInt(rgb[0], rgb[1], rgb[2], 255), x, y);
-        });
+        // 生成Arduino格式的16进制数组
+        const arduinoArray = [];
+        for (let i = 0; i < hexArray.length; i++) {
+            arduinoArray.push(`0x${hexArray[i].toString(16).padStart(1, '0')}`);
+        }
 
-        // 保存预览图片
-        await previewImage.writeAsync('preview.png');
-        console.log('预览图片已保存为 preview.png');
+        // 将数组写入文件
+        const fs = require('fs');
+        const arduinoCode = `#include <pgmspace.h>
+
+        // 7 Color Image Data ${EPD_WIDTH}*${EPD_HEIGHT}
+        const unsigned char gImage_7in3f[${hexArray.length}] PROGMEM = {
+        ${arduinoArray.join(',')}
+        };`;
+
+        fs.writeFileSync('image_data.h', arduinoCode);
+        console.log('Arduino数据已保存为 image_data.h');
 
         return hexArray;
     } catch (error) {
